@@ -1,0 +1,83 @@
+clc
+clear all
+%close all
+
+ts=0.1;
+t=0:ts:20;
+
+%Condiciones Iniciales
+xc(1)=3;
+yc(1)=0;
+phi(1)=pi/6;
+
+%Posicion deseada
+% xrd = 5*cos(linspace(-2*pi, 2*pi, length(t)+1));
+% yrd = 5*sin(linspace(-2*pi, 2*pi, length(t)+1));
+xrd = 6*cos(linspace(-2*pi, 2*pi, length(t)+1))./(1 + sin(linspace(-2*pi, 2*pi, length(t)+1)).^2) ;
+yrd = 6*cos(linspace(-2*pi, 2*pi, length(t)+1)).*sin(linspace(-2*pi, 2*pi, length(t)+1))./(1 + sin(linspace(-2*pi, 2*pi, length(t)+1)).^2) ;
+
+%Modelo del robot para el primer punto
+a=0.2;
+xr(1)=xc(1)+a*cos(phi(1));
+yr(1)=yc(1)+a*sin(phi(1));
+
+xre_prev = 0;
+    
+for k=1:length(t)
+    %Error
+    xre(k) = xrd(k+1) - xr(k);
+    yre(k) = yrd(k+1) - yr(k);
+    e = [xre(k); yre(k)];
+    
+    %Jacobiano
+    J = [cos(phi(k)) -a*sin(phi(k)); ...
+         sin(phi(k))  a*cos(phi(k))];
+    %Ganancia
+    K = [1.5 0; ...
+         0 1.5];
+    Ki = [0.3 0;...
+          0 0.3];
+   
+    %Controlador
+    ixe = xre(k) + xre_prev;
+    ixe = [ixe 0; ...
+           0 ixe];    
+    h = [xrd(k+1) - xrd(k);...
+         yrd(k+1) - yrd(k)];
+    v = inv(J)*(h + K*e)+ Ki*ixe;
+    u(k) = v(1);
+    w(k) = v(2);
+    
+    %Aplicamos controlador
+    xrp(k)=u(k)*cos(phi(k))-a*w(k)*sin(phi(k));
+    yrp(k)=u(k)*sin(phi(k))+a*w(k)*cos(phi(k));
+    
+    %Nueva posicion del robot
+    xr(k+1)=xr(k)+ts*xrp(k);
+    yr(k+1)=yr(k)+ts*yrp(k);
+    phi(k+1)=phi(k)+ts*w(k);
+    
+    xc(k+1)=xr(k+1)-a*cos(phi(k+1));
+    yc(k+1)=yr(k+1)-a*sin(phi(k+1));
+    
+    xre_prev = xre(k);
+    
+end
+
+pasos=1;  fig=figure(4);
+set(fig,'position',[10 60 980 600]);
+axis square; cameratoolbar
+axis([-8 10 -6 6 0 1]); grid on
+MobileRobot;
+M1=MobilePlot(xr(1),yr(1),phi(1));
+hold on, plot(xr,yr,'r'); plot(xrd, yrd);
+
+for i=1:pasos:length(t)
+    
+    delete (M1)
+    M1=MobilePlot(xc(i),yc(i),phi(i)); hold on
+    
+    pause(0.1)
+    
+end
+
